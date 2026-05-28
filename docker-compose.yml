@@ -4,7 +4,7 @@
 
 services:
   api:
-    image: golang:1.24-alpine
+    image: golang:1.26-alpine
     working_dir: /src
     command: >
       sh -c "go install github.com/air-verse/air@latest && air -c .air.toml"
@@ -29,7 +29,7 @@ services:
     image: node:22-alpine
     working_dir: /src/apps/web
     command: >
-      sh -c "corepack enable && pnpm install && pnpm dev --host 0.0.0.0"
+      sh -c "corepack enable && CI=true pnpm install && pnpm dev --host 0.0.0.0"
     volumes:
       - .:/src
       - pnpm-store:/root/.local/share/pnpm/store
