@@ -1,4 +1,4 @@
-.PHONY: all build test lint fmt dev setup clean image push
+.PHONY: all build test lint fmt dev setup clean image push docker-dev docker-dev-down db-shell db-reset
 
 # ─── Default ──────────────────────────────────────────────────────────────────
 all: lint test build
@@ -86,3 +86,18 @@ setup:
 clean:
 	bazel clean
 	rm -rf apps/web/dist apps/web/.astro
+
+# ─── Docker Dev ───────────────────────────────────────────────────────────────
+docker-dev:
+	docker compose up --build
+
+docker-dev-down:
+	docker compose down
+
+db-shell:
+	docker compose exec db psql -U devops devops_course
+
+db-reset:
+	docker compose down -v
+	docker compose up -d db
+	@echo "Database volume wiped. Run 'make docker-dev' to restart all services."
