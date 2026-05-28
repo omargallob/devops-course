@@ -1,0 +1,66 @@
+version: "2"
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - unused
+    - ineffassign
+    - gocritic
+    - revive
+    - cyclop
+    - gocognit
+    - dupl
+    - gosec
+  settings:
+    errcheck:
+      exclude-functions:
+        - (*os.File).Close
+        - (io.Closer).Close
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+    cyclop:
+      max-complexity: 15
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+    gocognit:
+      min-complexity: 40
+    revive:
+      rules:
+        - name: blank-imports
+        - name: exported
+        - name: unreachable-code
+        - name: unused-parameter
+    dupl:
+      threshold: 150
+    gosec:
+      excludes:
+        - G104
+        - G204
+        - G304
+
+  exclusions:
+    presets:
+      - std-error-handling
+    paths:
+      - bazel-.*
+      - third_party
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gosec
+          - dupl
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
