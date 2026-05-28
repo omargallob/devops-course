@@ -14,7 +14,7 @@ func testLogger() *slog.Logger {
 }
 
 func TestHealthEndpoint(t *testing.T) {
-	router := NewRouter(testLogger())
+	router := NewRouter(testLogger(), nil)
 	srv := httptest.NewServer(router)
 	defer srv.Close()
 
@@ -43,7 +43,7 @@ func TestHealthEndpoint(t *testing.T) {
 }
 
 func TestNotFound(t *testing.T) {
-	router := NewRouter(testLogger())
+	router := NewRouter(testLogger(), nil)
 	srv := httptest.NewServer(router)
 	defer srv.Close()
 
@@ -59,7 +59,7 @@ func TestNotFound(t *testing.T) {
 }
 
 func TestCompileEndpoint_MethodNotAllowed(t *testing.T) {
-	router := NewRouter(testLogger())
+	router := NewRouter(testLogger(), nil)
 	srv := httptest.NewServer(router)
 	defer srv.Close()
 
@@ -75,7 +75,7 @@ func TestCompileEndpoint_MethodNotAllowed(t *testing.T) {
 }
 
 func TestCORSHeaders(t *testing.T) {
-	router := NewRouter(testLogger())
+	router := NewRouter(testLogger(), nil)
 	srv := httptest.NewServer(router)
 	defer srv.Close()
 
@@ -96,7 +96,7 @@ func TestCORSHeaders(t *testing.T) {
 }
 
 func TestCORSRejectsUnknownOrigin(t *testing.T) {
-	router := NewRouter(testLogger())
+	router := NewRouter(testLogger(), nil)
 	srv := httptest.NewServer(router)
 	defer srv.Close()
 

@@ -12,7 +12,10 @@ import (
 	"syscall"
 	"time"
 
+	"gorm.io/gorm"
+
 	"github.com/omargallob/devops-course/internal/api"
+	"github.com/omargallob/devops-course/internal/database"
 
 	// Enforces build constraints: only compiles on linux/{amd64,arm64} and darwin/{amd64,arm64}.
 	_ "github.com/omargallob/devops-course/internal/platform"
@@ -29,7 +32,22 @@ func main() {
 		port = "8080"
 	}
 
-	router := api.NewRouter(logger)
+	// Database connection (optional: if DATABASE_URL is not set, run without DB).
+	var db *gorm.DB
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn != "" {
+		var err error
+		db, err = database.Open(dsn, logger)
+		if err != nil {
+			slog.Error("failed to connect to database", "error", err)
+			os.Exit(1)
+		}
+		slog.Info("database ready")
+	} else {
+		slog.Warn("DATABASE_URL not set, running without database")
+	}
+
+	router := api.NewRouter(logger, db)
 
 	srv := &http.Server{
 		Addr:         ":" + port,
