@@ -1,0 +1,34 @@
+# Bazel config for devops-course
+
+# Common flags
+common --enable_bzlmod
+
+# Build flags
+build --jobs=auto
+build --verbose_failures
+
+# Test flags
+test --test_output=errors
+test --test_verbose_timeout_warnings
+
+# Go platform constraints: only allow building for supported targets
+build --platforms=@rules_go//go/toolchain:linux_amd64,@rules_go//go/toolchain:linux_arm64,@rules_go//go/toolchain:darwin_amd64,@rules_go//go/toolchain:darwin_arm64
+
+# Use the host platform by default (override above for cross-compile)
+build --platforms=
+
+# Disk cache for local builds
+build --disk_cache=~/.cache/bazel-disk
+
+# Stamp binaries with git info
+build:release --stamp
+build:release --workspace_status_command=./tools/workspace_status.sh
+
+# CI-specific config
+build:ci --disk_cache=
+build:ci --color=yes
+build:ci --curses=no
+test:ci --test_output=all
+
+# Try importing user-specific config (ignored by git)
+try-import %workspace%/.bazelrc.user
