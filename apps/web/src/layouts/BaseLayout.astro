@@ -1,0 +1,38 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = 'Learn Go for DevOps - Interactive Course' } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{title} | Go for DevOps</title>
+  </head>
+  <body class="min-h-screen bg-gray-950 text-gray-100">
+    <header class="border-b border-gray-800 px-6 py-4">
+      <nav class="mx-auto flex max-w-6xl items-center justify-between">
+        <a href="/" class="text-xl font-bold text-white">Go for DevOps</a>
+        <div class="flex gap-6">
+          <a href="/modules" class="text-gray-400 hover:text-white transition-colors">Modules</a>
+          <a href="https://github.com/omargallob/devops-course" target="_blank" class="text-gray-400 hover:text-white transition-colors">GitHub</a>
+        </div>
+      </nav>
+    </header>
+    <main class="mx-auto max-w-6xl px-6 py-8">
+      <slot />
+    </main>
+    <footer class="border-t border-gray-800 px-6 py-6 text-center text-sm text-gray-500">
+      <p>Go for DevOps &mdash; Open Source Course</p>
+    </footer>
+  </body>
+</html>
