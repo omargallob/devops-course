@@ -18,4 +18,12 @@ export default tseslint.config(
   {
     ignores: ['dist/', '.astro/', 'node_modules/', 'bazel-*'],
   },
+  {
+    files: ['astro.config.mjs', 'eslint.config.mjs'],
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+      },
+    },
+  },
 );
