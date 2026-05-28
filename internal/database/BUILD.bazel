@@ -1,0 +1,17 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "database",
+    srcs = [
+        "database.go",
+        "models.go",
+    ],
+    importpath = "github.com/omargallob/devops-course/internal/database",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "@com_github_google_uuid//:uuid",
+        "@io_gorm_driver_postgres//:postgres",
+        "@io_gorm_gorm//:gorm",
+        "@io_gorm_gorm//logger",
+    ],
+)

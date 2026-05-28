@@ -17,7 +17,9 @@ go_library(
     visibility = ["//visibility:private"],
     deps = [
         "//internal/api",
+        "//internal/database",
         "//internal/platform",
+        "@io_gorm_gorm//:gorm",
     ],
 )
 

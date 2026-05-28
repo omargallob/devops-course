@@ -13,6 +13,7 @@ go_library(
         "@com_github_go_chi_chi_v5//:chi",
         "@com_github_go_chi_chi_v5//middleware",
         "@com_github_go_chi_cors//:cors",
+        "@io_gorm_gorm//:gorm",
     ],
 )
 
