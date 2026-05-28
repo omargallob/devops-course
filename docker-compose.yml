@@ -1,0 +1,65 @@
+# Dev-mode Docker Compose: hot reload for Go + Astro, persistent Postgres.
+# Usage: docker compose up
+# Access: http://localhost:4321 (web) | http://localhost:8080 (api) | localhost:5432 (db)
+
+services:
+  api:
+    image: golang:1.24-alpine
+    working_dir: /src
+    command: >
+      sh -c "go install github.com/air-verse/air@latest && air -c .air.toml"
+    volumes:
+      - .:/src
+      - go-mod-cache:/root/go/pkg/mod
+      - go-build-cache:/root/.cache/go-build
+    ports:
+      - "8080:8080"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - CGO_ENABLED=0
+      - DATABASE_URL=postgres://devops:devops@db:5432/devops_course?sslmode=disable
+      - PORT=8080
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    image: node:22-alpine
+    working_dir: /src/apps/web
+    command: >
+      sh -c "corepack enable && pnpm install && pnpm dev --host 0.0.0.0"
+    volumes:
+      - .:/src
+      - pnpm-store:/root/.local/share/pnpm/store
+      - web-node-modules:/src/apps/web/node_modules
+    ports:
+      - "4321:4321"
+    environment:
+      - API_URL=http://api:8080
+    depends_on:
+      - api
+
+  db:
+    image: postgres:17-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=devops
+      - POSTGRES_PASSWORD=devops
+      - POSTGRES_DB=devops_course
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devops -d devops_course"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  go-mod-cache:
+  go-build-cache:
+  pnpm-store:
+  web-node-modules:
+  pgdata:
