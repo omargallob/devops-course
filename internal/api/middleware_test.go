@@ -45,12 +45,12 @@ func TestSlogMiddlewareDoesNotPanic(t *testing.T) {
 	logger := testLogger()
 	mw := slogMiddleware(logger)
 
-	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok"))
+		_, _ = w.Write([]byte("ok"))
 	}))
 
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", http.NoBody)
 	w := httptest.NewRecorder()
 
 	// Should not panic

@@ -119,7 +119,7 @@ func TestCompileHandler_ProxiesToPlayground(t *testing.T) {
 
 func TestCompileHandler_PlaygroundError(t *testing.T) {
 	// Mock server that returns compile errors
-	mockPlayground := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mockPlayground := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(CompileResponse{
 			Errors: "./prog.go:3:1: expected declaration, got '}'",

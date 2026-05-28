@@ -79,7 +79,7 @@ func TestCORSHeaders(t *testing.T) {
 	srv := httptest.NewServer(router)
 	defer srv.Close()
 
-	req, _ := http.NewRequest(http.MethodOptions, srv.URL+"/healthz", nil)
+	req, _ := http.NewRequest(http.MethodOptions, srv.URL+"/healthz", http.NoBody)
 	req.Header.Set("Origin", "http://localhost:4321")
 	req.Header.Set("Access-Control-Request-Method", "GET")
 
@@ -100,7 +100,7 @@ func TestCORSRejectsUnknownOrigin(t *testing.T) {
 	srv := httptest.NewServer(router)
 	defer srv.Close()
 
-	req, _ := http.NewRequest(http.MethodOptions, srv.URL+"/healthz", nil)
+	req, _ := http.NewRequest(http.MethodOptions, srv.URL+"/healthz", http.NoBody)
 	req.Header.Set("Origin", "http://evil.example.com")
 	req.Header.Set("Access-Control-Request-Method", "GET")
 

@@ -77,7 +77,6 @@ func main() {
 
 	if err := srv.Shutdown(ctx); err != nil {
 		slog.Error("server forced shutdown", "error", err)
-		os.Exit(1)
 	}
 
 	fmt.Println("server stopped")

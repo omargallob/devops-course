@@ -18,12 +18,11 @@ import (
 // NewRouter builds the chi router with middleware, health check, CORS policy,
 // and API routes. The db parameter may be nil if the server is running without
 // a database (e.g. local development without Docker).
-func NewRouter(logger *slog.Logger, db *gorm.DB) http.Handler {
+func NewRouter(logger *slog.Logger, _ *gorm.DB) http.Handler {
 	r := chi.NewRouter()
 
 	// Middleware
 	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(30 * time.Second))
 	r.Use(slogMiddleware(logger))
@@ -36,10 +35,10 @@ func NewRouter(logger *slog.Logger, db *gorm.DB) http.Handler {
 	}))
 
 	// Health check
-	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ok"}`))
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
 
 	// API routes
