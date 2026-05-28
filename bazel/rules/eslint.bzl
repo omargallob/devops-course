@@ -24,8 +24,15 @@ def _eslint_test_impl(ctx):
 set -euo pipefail
 
 # Resolve workspace directory.
+# For `bazel run`, BUILD_WORKSPACE_DIRECTORY is set.
+# For `bazel test`, we're in the execroot with symlinks to the source tree.
+# Follow a known file's symlink to find the real workspace root.
 if [ -n "${{BUILD_WORKSPACE_DIRECTORY:-}}" ]; then
     cd "$BUILD_WORKSPACE_DIRECTORY"
+elif [ -L "package.json" ]; then
+    REAL_PKG=$(python3 -c "import os; print(os.path.realpath('package.json'))")
+    WORKSPACE_ROOT=$(dirname "$REAL_PKG")
+    cd "$WORKSPACE_ROOT"
 else
     WORKSPACE_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || true)
     if [ -n "$WORKSPACE_ROOT" ] && [ -f "$WORKSPACE_ROOT/package.json" ]; then
@@ -36,17 +43,36 @@ else
     fi
 fi
 
-if ! command -v npx >/dev/null 2>&1; then
-    echo "WARNING: npx not found in PATH, skipping eslint" >&2
+# Ensure we use the correct Node version (ESLint 9+ requires Node 18+).
+# Try nvm first (reads .nvmrc), then fall back to common Node 22 paths.
+if [ -s "${{NVM_DIR:-$HOME/.nvm}}/nvm.sh" ]; then
+    . "${{NVM_DIR:-$HOME/.nvm}}/nvm.sh" --no-use
+    nvm use --silent 2>/dev/null || true
+fi
+NODE_VERSION=$(node --version 2>/dev/null || echo "none")
+NODE_MAJOR=$(echo "$NODE_VERSION" | sed 's/^v//' | cut -d. -f1)
+if [ "$NODE_MAJOR" -lt 18 ] 2>/dev/null; then
+    echo "ERROR: Node 18+ required for ESLint 9 (found $NODE_VERSION)" >&2
+    echo "Run: nvm use 22" >&2
+    exit 1
+fi
+
+# Use project-local eslint from node_modules.
+if [ -x "apps/web/node_modules/.bin/eslint" ]; then
+    ESLINT="apps/web/node_modules/.bin/eslint"
+elif command -v pnpm >/dev/null 2>&1; then
+    ESLINT="pnpm --filter @devops-course/web exec eslint"
+else
+    echo "WARNING: eslint not found (run 'pnpm install' in apps/web first)" >&2
     exit 0
 fi
 
-echo "Running eslint..."
+echo "Running eslint... (Node $NODE_VERSION)"
 echo "  Working directory: $(pwd)"
 
 GLOBS=({globs})
 
-if npx eslint {config_arg} "${{GLOBS[@]}}"; then
+if $ESLINT {config_arg} "${{GLOBS[@]}}"; then
     echo ""
     echo "PASSED: eslint found no issues"
 else

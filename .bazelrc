@@ -11,6 +11,11 @@ build --verbose_failures
 test --test_output=errors
 test --test_verbose_timeout_warnings
 
+# Pass through env vars needed by local lint rules (nvm, pnpm, etc.)
+test --test_env=HOME
+test --test_env=PATH
+test --test_env=NVM_DIR
+
 # Go platform constraints: only allow building for supported targets
 build --platforms=@rules_go//go/toolchain:linux_amd64,@rules_go//go/toolchain:linux_arm64,@rules_go//go/toolchain:darwin_amd64,@rules_go//go/toolchain:darwin_arm64
 

@@ -112,7 +112,7 @@ export DATABASE_URL="postgres://devops:devops@localhost:5432/devops_course?sslmo
 | `internal/api/` | HTTP router, middleware, route handlers |
 | `internal/database/` | GORM models (User, Session, LessonProgress, ExerciseSubmission) |
 | `internal/playground/` | Go Playground compile proxy |
-| `bazel/rules/` | Custom lint rules (golangci-lint, shellcheck, yamllint, actionlint, prettier, eslint) |
+| `bazel/rules/` | Custom lint rules (golangci-lint, shellcheck, yamllint, actionlint, eslint) |
 
 ### Database
 
@@ -130,7 +130,7 @@ Linters run through Bazel test targets and pre-commit hooks:
 - **Go:** golangci-lint v2
 - **YAML:** yamllint
 - **GitHub Actions:** actionlint
-- **Frontend:** prettier (with astro plugin), ESLint (typescript-eslint + eslint-plugin-astro)
+- **Frontend:** ESLint (typescript-eslint + eslint-plugin-astro)
 - **Commits:** commitlint (conventional commits)
 
 ### CI

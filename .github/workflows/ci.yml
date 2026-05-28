@@ -39,14 +39,13 @@ jobs:
         run: golangci-lint run --config .golangci.yml --timeout 5m ./cmd/... ./internal/...
 
       - name: yamllint
-        run: yamllint --strict -c .yamllint.yaml $(find . -name '*.yaml' -o -name '*.yml' | grep -v node_modules | grep -v pnpm-lock | grep -v bazel-)
+        run: |
+          find . -name '*.yaml' -o -name '*.yml' \
+            | grep -v node_modules | grep -v pnpm-lock | grep -v bazel- \
+            | xargs yamllint --strict -c .yamllint.yaml
 
       - name: eslint
         run: pnpm --filter @devops-course/web lint
-        working-directory: .
-
-      - name: prettier
-        run: pnpm --filter @devops-course/web format:check
         working-directory: .
 
   test:

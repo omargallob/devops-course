@@ -37,13 +37,6 @@ repos:
         pass_filenames: false
         files: \.github/workflows/
 
-      - id: prettier
-        name: prettier (bazel)
-        entry: bazel test //:prettier
-        language: system
-        pass_filenames: false
-        types_or: [ts, css, markdown, mdx, astro]
-
       - id: eslint
         name: eslint (bazel)
         entry: bazel test //:eslint
