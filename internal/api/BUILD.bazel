@@ -1,0 +1,26 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "api",
+    srcs = [
+        "middleware.go",
+        "router.go",
+    ],
+    importpath = "github.com/omargallob/devops-course/internal/api",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/playground",
+        "@com_github_go_chi_chi_v5//:chi",
+        "@com_github_go_chi_chi_v5//middleware",
+        "@com_github_go_chi_cors//:cors",
+    ],
+)
+
+go_test(
+    name = "api_test",
+    srcs = [
+        "middleware_test.go",
+        "router_test.go",
+    ],
+    embed = [":api"],
+)
