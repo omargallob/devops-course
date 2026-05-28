@@ -1,0 +1,50 @@
+repos:
+  - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook
+    rev: v9.21.0
+    hooks:
+      - id: commitlint
+        stages: [commit-msg]
+        additional_dependencies:
+          - '@commitlint/config-conventional'
+
+  - repo: local
+    hooks:
+      - id: golangci-lint
+        name: golangci-lint (bazel)
+        entry: bazel test //:golangci_lint
+        language: system
+        pass_filenames: false
+        types: [go]
+        stages: [pre-commit]
+
+      - id: shellcheck
+        name: shellcheck (bazel)
+        entry: bazel test //:shellcheck
+        language: system
+        pass_filenames: false
+        types: [shell]
+        stages: [pre-commit]
+
+      - id: yamllint
+        name: yamllint (bazel)
+        entry: bazel test //:yamllint
+        language: system
+        pass_filenames: false
+        types: [yaml]
+        stages: [pre-commit]
+
+      - id: actionlint
+        name: actionlint (bazel)
+        entry: bazel test //:actionlint
+        language: system
+        pass_filenames: false
+        files: \.github/workflows/
+        stages: [pre-commit]
+
+      - id: eslint
+        name: eslint (bazel)
+        entry: bazel test //:eslint
+        language: system
+        pass_filenames: false
+        types_or: [ts, astro]
+        stages: [pre-commit]

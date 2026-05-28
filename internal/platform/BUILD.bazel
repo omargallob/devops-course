@@ -1,0 +1,20 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "platform",
+    srcs = [
+        "platform.go",
+        "platform_darwin_amd64.go",
+        "platform_darwin_arm64.go",
+        "platform_linux_amd64.go",
+        "platform_linux_arm64.go",
+    ],
+    importpath = "github.com/omargallob/devops-course/internal/platform",
+    visibility = ["//:__subpackages__"],
+)
+
+go_test(
+    name = "platform_test",
+    srcs = ["platform_test.go"],
+    embed = [":platform"],
+)

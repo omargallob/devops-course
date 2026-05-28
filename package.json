@@ -1,0 +1,10 @@
+{
+  "name": "devops-course",
+  "private": true,
+  "packageManager": "pnpm@11.4.0",
+  "scripts": {
+    "dev:web": "pnpm --filter @devops-course/web dev",
+    "build:web": "pnpm --filter @devops-course/web build",
+    "lint:web": "pnpm --filter @devops-course/web lint"
+  }
+}
