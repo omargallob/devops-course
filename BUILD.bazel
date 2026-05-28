@@ -1,0 +1,97 @@
+load("@gazelle//:def.bzl", "gazelle")
+load("//bazel/rules:actionlint.bzl", "actionlint_test")
+load("//bazel/rules:eslint.bzl", "eslint_test")
+load("//bazel/rules:golangci_lint.bzl", "golangci_lint_test")
+load("//bazel/rules:prettier.bzl", "prettier_test")
+load("//bazel/rules:yamllint.bzl", "yamllint_test")
+
+# ─── Gazelle ──────────────────────────────────────────────────────────────────
+# gazelle:prefix github.com/omargallob/devops-course
+gazelle(name = "gazelle")
+
+# ─── Go lint ──────────────────────────────────────────────────────────────────
+golangci_lint_test(
+    name = "golangci_lint",
+    srcs = glob(
+        ["**/*.go"],
+        allow_empty = True,
+        exclude = ["bazel-*/**"],
+    ),
+    config = ".golangci.yml",
+    paths = [
+        "./cmd/...",
+        "./internal/...",
+    ],
+    tags = ["local"],
+)
+
+# ─── YAML lint ────────────────────────────────────────────────────────────────
+yamllint_test(
+    name = "yamllint",
+    srcs = glob(
+        [
+            "*.yaml",
+            "*.yml",
+            ".*.yaml",
+            ".*.yml",
+        ],
+        allow_empty = True,
+        exclude = [
+            "bazel-*/**",
+            "node_modules/**",
+            "pnpm-lock.yaml",
+        ],
+    ) + glob(
+        [".github/workflows/*.yml"],
+        allow_empty = True,
+    ),
+    config = ".yamllint.yaml",
+    tags = ["local"],
+)
+
+# ─── GitHub Actions lint ──────────────────────────────────────────────────────
+actionlint_test(
+    name = "actionlint",
+    srcs = glob(
+        [".github/workflows/*.yml"],
+        allow_empty = True,
+    ),
+    tags = ["local"],
+)
+
+# ─── Prettier (frontend formatting) ──────────────────────────────────────────
+prettier_test(
+    name = "prettier",
+    srcs = glob(
+        [
+            "apps/web/src/**/*.ts",
+            "apps/web/src/**/*.astro",
+            "apps/web/src/**/*.css",
+            "apps/web/src/**/*.mdx",
+        ],
+        allow_empty = True,
+    ),
+    config = ".prettierrc.yaml",
+    globs = [
+        "apps/web/src/**/*.{ts,astro,css,mdx}",
+    ],
+    ignore = ".prettierignore",
+    tags = ["local"],
+)
+
+# ─── ESLint (TypeScript + Astro) ─────────────────────────────────────────────
+eslint_test(
+    name = "eslint",
+    srcs = glob(
+        [
+            "apps/web/src/**/*.ts",
+            "apps/web/src/**/*.astro",
+        ],
+        allow_empty = True,
+    ),
+    config = "apps/web/eslint.config.mjs",
+    globs = [
+        "apps/web/src/",
+    ],
+    tags = ["local"],
+)
