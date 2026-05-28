@@ -15,6 +15,7 @@ repos:
         language: system
         pass_filenames: false
         types: [go]
+        stages: [pre-commit]
 
       - id: shellcheck
         name: shellcheck (bazel)
@@ -22,6 +23,7 @@ repos:
         language: system
         pass_filenames: false
         types: [shell]
+        stages: [pre-commit]
 
       - id: yamllint
         name: yamllint (bazel)
@@ -29,6 +31,7 @@ repos:
         language: system
         pass_filenames: false
         types: [yaml]
+        stages: [pre-commit]
 
       - id: actionlint
         name: actionlint (bazel)
@@ -36,6 +39,7 @@ repos:
         language: system
         pass_filenames: false
         files: \.github/workflows/
+        stages: [pre-commit]
 
       - id: eslint
         name: eslint (bazel)
@@ -43,3 +47,4 @@ repos:
         language: system
         pass_filenames: false
         types_or: [ts, astro]
+        stages: [pre-commit]
