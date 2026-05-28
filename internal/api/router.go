@@ -10,13 +10,15 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"gorm.io/gorm"
 
 	"github.com/omargallob/devops-course/internal/playground"
 )
 
 // NewRouter builds the chi router with middleware, health check, CORS policy,
-// and API routes.
-func NewRouter(logger *slog.Logger) http.Handler {
+// and API routes. The db parameter may be nil if the server is running without
+// a database (e.g. local development without Docker).
+func NewRouter(logger *slog.Logger, db *gorm.DB) http.Handler {
 	r := chi.NewRouter()
 
 	// Middleware
