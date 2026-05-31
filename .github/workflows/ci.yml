@@ -87,7 +87,7 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
 
       - name: Install frontend deps
         run: pnpm install
@@ -101,8 +101,9 @@ jobs:
   bazel:
     name: Bazel Build & Test
     runs-on: ubuntu-latest
+    needs: [lint, test, build]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: bazel-contrib/setup-bazel@0.14.0
         with:
@@ -161,7 +162,7 @@ jobs:
   image:
     name: Build & Push Image
     runs-on: ubuntu-latest
-    needs: [lint, test, build, contracts]
+    needs: [lint, test, build, bazel, contracts]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
       - uses: actions/checkout@v6
