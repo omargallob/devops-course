@@ -1,5 +1,5 @@
 .PHONY: all build test lint fmt dev setup clean image push image-web push-web docker-dev docker-dev-down db-shell db-reset \
-	generate generate-go generate-ts lint-contracts
+	generate generate-go generate-ts lint-contracts e2e
 
 # ─── Default ──────────────────────────────────────────────────────────────────
 all: lint test build
@@ -20,6 +20,16 @@ test-go:
 
 test-web:
 	cd apps/web && pnpm test
+
+test-e2e: e2e
+
+e2e:
+	@echo "Starting servers and running Cypress e2e tests..."
+	@trap 'kill 0' EXIT; \
+		(go run ./cmd/server &) && \
+		(cd apps/web && pnpm build && pnpm preview --port 4321 &) && \
+		sleep 3 && \
+		cd e2e && pnpm cypress run
 
 # ─── Lint ─────────────────────────────────────────────────────────────────────
 lint:
