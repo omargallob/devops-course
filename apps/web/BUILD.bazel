@@ -55,13 +55,36 @@ genrule(
         WORKSPACE_ROOT=$$(python3 -c "import os,sys; print(os.path.dirname(os.path.realpath(sys.argv[1])))" $(location //:pnpm-workspace.yaml))
         cd "$$WORKSPACE_ROOT"
 
-        # Reconstruct HOME and find the correct Node.js via nvm (Bazel clears env).
+        # Reconstruct HOME (Bazel clears env with `env -`).
         export HOME=$$(eval echo ~$$(id -un))
+
+        # Rebuild PATH to find node and pnpm.
+        # nvm (local dev on macOS/Linux)
         NVMRC=$$(cat .nvmrc 2>/dev/null || echo "")
         NVM_NODE_DIR=$$(ls -d "$$HOME/.nvm/versions/node/v$${NVMRC}"* 2>/dev/null | sort -V | tail -1 || echo "")
+        # GitHub Actions: setup-node installs to /opt/hostedtoolcache/node/<ver>/x64/bin
+        GHA_NODE_DIR=$$(ls -d /opt/hostedtoolcache/node/$${NVMRC}*/x64/bin 2>/dev/null | sort -V | tail -1 || echo "")
+        # GitHub Actions: pnpm/action-setup writes PNPM_HOME to GITHUB_PATH;
+        # recover it by scanning the path file the runner creates.
+        GHA_PNPM_DIR=""
+        if [ -f "$$HOME/.setup-pnpm/node_modules/.bin/pnpm" ]; then
+            GHA_PNPM_DIR="$$HOME/.setup-pnpm/node_modules/.bin"
+        elif [ -f "/home/runner/setup-pnpm/node_modules/.bin/pnpm" ]; then
+            GHA_PNPM_DIR="/home/runner/setup-pnpm/node_modules/.bin"
+        fi
 
-        # Node dir must come FIRST so pnpm/corepack use the right Node version.
-        export PATH="$${NVM_NODE_DIR:+$$NVM_NODE_DIR/bin:}$$WORKSPACE_ROOT/node_modules/.bin:$$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$$PATH"
+        # Lowest priority first — each prepend moves the dir to the front of PATH,
+        # so the LAST entry in this list ends up with the highest priority.
+        for DIR in \
+            "/usr/local/bin" \
+            "/opt/homebrew/bin" \
+            "$$HOME/.local/bin" \
+            "$$WORKSPACE_ROOT/node_modules/.bin" \
+            "$$GHA_PNPM_DIR" \
+            "$$GHA_NODE_DIR" \
+            "$$NVM_NODE_DIR/bin"; do
+            [ -n "$$DIR" ] && [ -d "$$DIR" ] && export PATH="$$DIR:$$PATH"
+        done
 
         # Clean previous build output to avoid stale artifacts.
         rm -rf apps/web/dist
