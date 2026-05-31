@@ -3,3 +3,4 @@ apps/web/node_modules
 apps/web/dist
 apps/web/.astro
 packages/contracts/node_modules
+e2e/node_modules
