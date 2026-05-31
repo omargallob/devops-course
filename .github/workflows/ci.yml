@@ -116,10 +116,52 @@ jobs:
       - name: Bazel test
         run: bazel test //internal/... //cmd/... --config=ci
 
+  contracts:
+    name: Contract Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
+      - uses: pnpm/action-setup@v5
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Lint OpenAPI spec
+        run: pnpm --filter @devops-course/contracts lint
+
+      - name: Check Go codegen freshness
+        run: |
+          make generate-go
+          git diff --exit-code packages/contracts/generated/go/ || \
+            (echo "::error::Generated Go code is out of date. Run 'make generate-go' and commit." && exit 1)
+
+      - name: Check TypeScript codegen freshness
+        run: |
+          make generate-ts
+          git diff --exit-code packages/contracts/generated/ts/ || \
+            (echo "::error::Generated TS code is out of date. Run 'make generate-ts' and commit." && exit 1)
+
+      - name: Detect breaking changes
+        if: github.event_name == 'pull_request'
+        run: |
+          go install github.com/oasdiff/oasdiff@latest
+          git fetch origin main
+          git show origin/main:packages/contracts/openapi/api.yaml > /tmp/api-base.yaml 2>/dev/null || exit 0
+          oasdiff breaking /tmp/api-base.yaml packages/contracts/openapi/api.yaml
+
   image:
     name: Build & Push Image
     runs-on: ubuntu-latest
-    needs: [lint, test, build]
+    needs: [lint, test, build, contracts]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
       - uses: actions/checkout@v6

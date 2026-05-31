@@ -1,4 +1,5 @@
-.PHONY: all build test lint fmt dev setup clean image push docker-dev docker-dev-down db-shell db-reset
+.PHONY: all build test lint fmt dev setup clean image push docker-dev docker-dev-down db-shell db-reset \
+	generate generate-go generate-ts lint-contracts
 
 # ─── Default ──────────────────────────────────────────────────────────────────
 all: lint test build
@@ -86,6 +87,20 @@ setup:
 clean:
 	bazel clean
 	rm -rf apps/web/dist apps/web/.astro
+
+# ─── Contracts / Code Generation ──────────────────────────────────────────────
+generate: generate-go generate-ts
+
+generate-go:
+	go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen \
+		--config packages/contracts/oapi-codegen.yaml \
+		packages/contracts/openapi/api.yaml
+
+generate-ts:
+	cd packages/contracts && pnpm generate:ts
+
+lint-contracts:
+	cd packages/contracts && pnpm lint
 
 # ─── Docker Dev ───────────────────────────────────────────────────────────────
 docker-dev:

@@ -1,0 +1,15 @@
+{
+  "name": "@devops-course/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "API contracts (OpenAPI specs, JSON schemas, generated code)",
+  "scripts": {
+    "generate": "pnpm generate:ts",
+    "generate:ts": "openapi-typescript openapi/api.yaml -o generated/ts/api.ts",
+    "lint": "spectral lint openapi/api.yaml"
+  },
+  "devDependencies": {
+    "@stoplight/spectral-cli": "^6.14.0",
+    "openapi-typescript": "^7.6.0"
+  }
+}
