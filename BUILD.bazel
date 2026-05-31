@@ -1,8 +1,16 @@
 load("@gazelle//:def.bzl", "gazelle")
+load("@npm//:defs.bzl", "npm_link_all_packages")
 load("//bazel/rules:actionlint.bzl", "actionlint_test")
-load("//bazel/rules:eslint.bzl", "eslint_test")
 load("//bazel/rules:golangci_lint.bzl", "golangci_lint_test")
 load("//bazel/rules:yamllint.bzl", "yamllint_test")
+
+# ─── npm ──────────────────────────────────────────────────────────────────────
+npm_link_all_packages(name = "node_modules")
+
+exports_files(
+    ["pnpm-workspace.yaml"],
+    visibility = ["//apps/web:__pkg__"],
+)
 
 # ─── Gazelle ──────────────────────────────────────────────────────────────────
 # gazelle:prefix github.com/omargallob/devops-course
@@ -58,19 +66,10 @@ actionlint_test(
     tags = ["local"],
 )
 
-# ─── ESLint (TypeScript + Astro) ─────────────────────────────────────────────
-eslint_test(
+# ─── ESLint (delegated to apps/web) ──────────────────────────────────────────
+# The eslint_test target now lives in //apps/web:eslint since apps/web is its
+# own Bazel package. This alias keeps `bazel test //:eslint` working.
+alias(
     name = "eslint",
-    srcs = glob(
-        [
-            "apps/web/src/**/*.ts",
-            "apps/web/src/**/*.astro",
-        ],
-        allow_empty = True,
-    ),
-    config = "apps/web/eslint.config.mjs",
-    globs = [
-        "apps/web/src/",
-    ],
-    tags = ["local"],
+    actual = "//apps/web:eslint",
 )
