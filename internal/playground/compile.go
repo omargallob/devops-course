@@ -5,7 +5,9 @@
 package playground
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -90,4 +92,32 @@ func (h *CompileHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(resp.StatusCode)
 	_, _ = io.Copy(w, resp.Body)
+}
+
+// CompileCode sends code to the Go Playground and returns the parsed response.
+// This is the programmatic API used by the exercise validation system.
+func (h *CompileHandler) CompileCode(ctx context.Context, code string) (*CompileResponse, error) {
+	form := strings.NewReader("version=2&body=" + code)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, h.playgroundURL, form)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := h.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("playground request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("playground returned %d: %s", resp.StatusCode, string(body))
+	}
+
+	var result CompileResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decoding response: %w", err)
+	}
+	return &result, nil
 }

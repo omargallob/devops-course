@@ -11,7 +11,26 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/oapi-codegen/runtime"
 )
+
+// Defines values for ExerciseResponseValidationMode.
+const (
+	Exact ExerciseResponseValidationMode = "exact"
+	Regex ExerciseResponseValidationMode = "regex"
+)
+
+// Valid indicates whether the value is a known member of the ExerciseResponseValidationMode enum.
+func (e ExerciseResponseValidationMode) Valid() bool {
+	switch e {
+	case Exact:
+		return true
+	case Regex:
+		return true
+	default:
+		return false
+	}
+}
 
 // CompileEvent defines model for CompileEvent.
 type CompileEvent struct {
@@ -64,19 +83,82 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
+// ExerciseResponse defines model for ExerciseResponse.
+type ExerciseResponse struct {
+	// Hint Optional hint shown on request
+	Hint *string `json:"hint,omitempty"`
+
+	// Id Unique exercise identifier
+	Id string `json:"id"`
+
+	// Instructions Exercise instructions in markdown format
+	Instructions string `json:"instructions"`
+
+	// StarterCode Pre-filled code for the exercise editor
+	StarterCode string `json:"starterCode"`
+
+	// Title Human-readable exercise title
+	Title string `json:"title"`
+
+	// ValidationMode How the output is validated
+	ValidationMode ExerciseResponseValidationMode `json:"validationMode"`
+}
+
+// ExerciseResponseValidationMode How the output is validated
+type ExerciseResponseValidationMode string
+
 // HealthResponse defines model for HealthResponse.
 type HealthResponse struct {
 	Status string `json:"status"`
 }
 
+// ValidateRequest defines model for ValidateRequest.
+type ValidateRequest struct {
+	// Code User-submitted Go source code
+	Code string `json:"code"`
+
+	// ExerciseId The exercise to validate against
+	ExerciseId string `json:"exerciseId"`
+}
+
+// ValidateResponse defines model for ValidateResponse.
+type ValidateResponse struct {
+	// ActualOutput The actual output from running the code
+	ActualOutput *string `json:"actualOutput,omitempty"`
+
+	// CompileError Compilation error message (if code failed to compile)
+	CompileError *string `json:"compileError,omitempty"`
+
+	// Diff Line-by-line diff between expected and actual (on failure)
+	Diff *string `json:"diff,omitempty"`
+
+	// ExerciseId The exercise that was validated
+	ExerciseId string `json:"exerciseId"`
+
+	// ExpectedOutput The expected output (shown on failure)
+	ExpectedOutput *string `json:"expectedOutput,omitempty"`
+
+	// Passed Whether the submission passed validation
+	Passed bool `json:"passed"`
+}
+
 // CompileCodeJSONRequestBody defines body for CompileCode for application/json ContentType.
 type CompileCodeJSONRequestBody = CompileRequest
+
+// ValidateExerciseJSONRequestBody defines body for ValidateExercise for application/json ContentType.
+type ValidateExerciseJSONRequestBody = ValidateRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// Compile and run Go code
 	// (POST /api/compile)
 	CompileCode(w http.ResponseWriter, r *http.Request)
+	// Get exercise definition
+	// (GET /api/exercises/{exerciseId})
+	GetExercise(w http.ResponseWriter, r *http.Request, exerciseId string)
+	// Validate exercise submission
+	// (POST /api/validate)
+	ValidateExercise(w http.ResponseWriter, r *http.Request)
 	// Health check
 	// (GET /healthz)
 	GetHealth(w http.ResponseWriter, r *http.Request)
@@ -89,6 +171,18 @@ type Unimplemented struct{}
 // Compile and run Go code
 // (POST /api/compile)
 func (_ Unimplemented) CompileCode(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get exercise definition
+// (GET /api/exercises/{exerciseId})
+func (_ Unimplemented) GetExercise(w http.ResponseWriter, r *http.Request, exerciseId string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Validate exercise submission
+// (POST /api/validate)
+func (_ Unimplemented) ValidateExercise(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -112,6 +206,46 @@ func (siw *ServerInterfaceWrapper) CompileCode(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CompileCode(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetExercise operation middleware
+func (siw *ServerInterfaceWrapper) GetExercise(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "exerciseId" -------------
+	var exerciseId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "exerciseId", chi.URLParam(r, "exerciseId"), &exerciseId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "exerciseId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetExercise(w, r, exerciseId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ValidateExercise operation middleware
+func (siw *ServerInterfaceWrapper) ValidateExercise(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ValidateExercise(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -252,6 +386,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Post(options.BaseURL+"/api/compile", wrapper.CompileCode)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/api/exercises/{exerciseId}", wrapper.GetExercise)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/api/validate", wrapper.ValidateExercise)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/healthz", wrapper.GetHealth)
 	})
 
@@ -322,6 +462,120 @@ func (response CompileCode502JSONResponse) VisitCompileCodeResponse(w http.Respo
 	return err
 }
 
+type GetExerciseRequestObject struct {
+	ExerciseId string `json:"exerciseId"`
+}
+
+type GetExerciseResponseObject interface {
+	VisitGetExerciseResponse(w http.ResponseWriter) error
+}
+
+type GetExercise200JSONResponse ExerciseResponse
+
+func (response GetExercise200JSONResponse) VisitGetExerciseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetExercise404JSONResponse ErrorResponse
+
+func (response GetExercise404JSONResponse) VisitGetExerciseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ValidateExerciseRequestObject struct {
+	Body *ValidateExerciseJSONRequestBody
+}
+
+type ValidateExerciseResponseObject interface {
+	VisitValidateExerciseResponse(w http.ResponseWriter) error
+}
+
+type ValidateExercise200JSONResponse ValidateResponse
+
+func (response ValidateExercise200JSONResponse) VisitValidateExerciseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ValidateExercise400JSONResponse ErrorResponse
+
+func (response ValidateExercise400JSONResponse) VisitValidateExerciseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ValidateExercise404JSONResponse ErrorResponse
+
+func (response ValidateExercise404JSONResponse) VisitValidateExerciseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ValidateExercise500JSONResponse ErrorResponse
+
+func (response ValidateExercise500JSONResponse) VisitValidateExerciseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ValidateExercise502JSONResponse ErrorResponse
+
+func (response ValidateExercise502JSONResponse) VisitValidateExerciseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(502)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetHealthRequestObject struct {
 }
 
@@ -348,6 +602,12 @@ type StrictServerInterface interface {
 	// Compile and run Go code
 	// (POST /api/compile)
 	CompileCode(ctx context.Context, request CompileCodeRequestObject) (CompileCodeResponseObject, error)
+	// Get exercise definition
+	// (GET /api/exercises/{exerciseId})
+	GetExercise(ctx context.Context, request GetExerciseRequestObject) (GetExerciseResponseObject, error)
+	// Validate exercise submission
+	// (POST /api/validate)
+	ValidateExercise(ctx context.Context, request ValidateExerciseRequestObject) (ValidateExerciseResponseObject, error)
 	// Health check
 	// (GET /healthz)
 	GetHealth(ctx context.Context, request GetHealthRequestObject) (GetHealthResponseObject, error)
@@ -406,6 +666,63 @@ func (sh *strictHandler) CompileCode(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(CompileCodeResponseObject); ok {
 		if err := validResponse.VisitCompileCodeResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetExercise operation middleware
+func (sh *strictHandler) GetExercise(w http.ResponseWriter, r *http.Request, exerciseId string) {
+	var request GetExerciseRequestObject
+
+	request.ExerciseId = exerciseId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetExercise(ctx, request.(GetExerciseRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetExercise")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetExerciseResponseObject); ok {
+		if err := validResponse.VisitGetExerciseResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ValidateExercise operation middleware
+func (sh *strictHandler) ValidateExercise(w http.ResponseWriter, r *http.Request) {
+	var request ValidateExerciseRequestObject
+
+	var body ValidateExerciseJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ValidateExercise(ctx, request.(ValidateExerciseRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ValidateExercise")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ValidateExerciseResponseObject); ok {
+		if err := validResponse.VisitValidateExerciseResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
