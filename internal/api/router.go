@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/cors"
 	"gorm.io/gorm"
 
+	"github.com/omargallob/devops-course/internal/exercises"
 	"github.com/omargallob/devops-course/internal/playground"
 )
 
@@ -45,6 +46,10 @@ func NewRouter(logger *slog.Logger, _ *gorm.DB) http.Handler {
 	r.Route("/api", func(r chi.Router) {
 		compileHandler := playground.NewCompileHandler(logger)
 		r.Post("/compile", compileHandler.Handle)
+
+		exerciseHandler := exercises.NewHandler(logger, compileHandler)
+		r.Get("/exercises/{exerciseId}", exerciseHandler.GetExercise)
+		r.Post("/validate", exerciseHandler.ValidateExercise)
 	})
 
 	return r

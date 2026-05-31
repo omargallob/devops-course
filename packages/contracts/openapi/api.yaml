@@ -15,6 +15,8 @@ tags:
     description: System health and status endpoints
   - name: playground
     description: Go Playground code compilation and execution
+  - name: exercises
+    description: Exercise definitions and validation
 
 paths:
   /healthz:
@@ -56,6 +58,86 @@ paths:
                 $ref: "#/components/schemas/CompileResponse"
         "400":
           description: Invalid request (malformed JSON or empty code body)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Go Playground unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/exercises/{exerciseId}:
+    get:
+      operationId: getExercise
+      summary: Get exercise definition
+      description: |
+        Returns the exercise definition including instructions, starter code,
+        and metadata. Does not include the expected output (to prevent cheating).
+      tags:
+        - exercises
+      parameters:
+        - name: exerciseId
+          in: path
+          required: true
+          description: Unique exercise identifier (e.g. "m01-hello-world")
+          schema:
+            type: string
+            pattern: "^[a-z0-9][a-z0-9-]*$"
+      responses:
+        "200":
+          description: Exercise definition
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExerciseResponse"
+        "404":
+          description: Exercise not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/validate:
+    post:
+      operationId: validateExercise
+      summary: Validate exercise submission
+      description: |
+        Accepts user code and an exercise ID. Compiles and runs the user code
+        via the Go Playground, then compares the output against the expected
+        output defined in the exercise. Supports exact match and regex-based
+        validation modes.
+      tags:
+        - exercises
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ValidateRequest"
+      responses:
+        "200":
+          description: Validation result (pass or fail with details)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidateResponse"
+        "400":
+          description: Invalid request (malformed JSON, empty code, or missing exercise ID)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Exercise not found
           content:
             application/json:
               schema:
@@ -155,3 +237,93 @@ components:
           type: string
           description: Human-readable error message
           example: "empty code body"
+
+    ExerciseResponse:
+      type: object
+      required:
+        - id
+        - title
+        - instructions
+        - starterCode
+        - validationMode
+      properties:
+        id:
+          type: string
+          description: Unique exercise identifier
+          example: "m01-hello-world"
+        title:
+          type: string
+          description: Human-readable exercise title
+          example: "Hello World"
+        instructions:
+          type: string
+          description: Exercise instructions in markdown format
+          example: "Write a program that prints `Hello, World!` to stdout."
+        starterCode:
+          type: string
+          description: Pre-filled code for the exercise editor
+          example: |
+            package main
+
+            func main() {
+                // Your code here
+            }
+        hint:
+          type: string
+          description: Optional hint shown on request
+          example: "Use fmt.Println()"
+        validationMode:
+          type: string
+          description: How the output is validated
+          enum:
+            - exact
+            - regex
+          example: "exact"
+
+    ValidateRequest:
+      type: object
+      required:
+        - exerciseId
+        - code
+      properties:
+        exerciseId:
+          type: string
+          description: The exercise to validate against
+          example: "m01-hello-world"
+        code:
+          type: string
+          description: User-submitted Go source code
+          minLength: 1
+          example: |
+            package main
+
+            import "fmt"
+
+            func main() {
+                fmt.Println("Hello, World!")
+            }
+
+    ValidateResponse:
+      type: object
+      required:
+        - passed
+        - exerciseId
+      properties:
+        passed:
+          type: boolean
+          description: Whether the submission passed validation
+        exerciseId:
+          type: string
+          description: The exercise that was validated
+        actualOutput:
+          type: string
+          description: The actual output from running the code
+        expectedOutput:
+          type: string
+          description: The expected output (shown on failure)
+        diff:
+          type: string
+          description: Line-by-line diff between expected and actual (on failure)
+        compileError:
+          type: string
+          description: Compilation error message (if code failed to compile)

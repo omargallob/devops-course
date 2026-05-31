@@ -45,6 +45,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/exercises/{exerciseId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get exercise definition
+         * @description Returns the exercise definition including instructions, starter code,
+         *     and metadata. Does not include the expected output (to prevent cheating).
+         */
+        get: operations["getExercise"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Validate exercise submission
+         * @description Accepts user code and an exercise ID. Compiles and runs the user code
+         *     via the Go Playground, then compares the output against the expected
+         *     output defined in the exercise. Supports exact match and regex-based
+         *     validation modes.
+         */
+        post: operations["validateExercise"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -102,6 +146,75 @@ export interface components {
              */
             error: string;
         };
+        ExerciseResponse: {
+            /**
+             * @description Unique exercise identifier
+             * @example m01-hello-world
+             */
+            id: string;
+            /**
+             * @description Human-readable exercise title
+             * @example Hello World
+             */
+            title: string;
+            /**
+             * @description Exercise instructions in markdown format
+             * @example Write a program that prints `Hello, World!` to stdout.
+             */
+            instructions: string;
+            /**
+             * @description Pre-filled code for the exercise editor
+             * @example package main
+             *
+             *     func main() {
+             *         // Your code here
+             *     }
+             */
+            starterCode: string;
+            /**
+             * @description Optional hint shown on request
+             * @example Use fmt.Println()
+             */
+            hint?: string;
+            /**
+             * @description How the output is validated
+             * @example exact
+             * @enum {string}
+             */
+            validationMode: "exact" | "regex";
+        };
+        ValidateRequest: {
+            /**
+             * @description The exercise to validate against
+             * @example m01-hello-world
+             */
+            exerciseId: string;
+            /**
+             * @description User-submitted Go source code
+             * @example package main
+             *
+             *     import "fmt"
+             *
+             *     func main() {
+             *         fmt.Println("Hello, World!")
+             *     }
+             */
+            code: string;
+        };
+        ValidateResponse: {
+            /** @description Whether the submission passed validation */
+            passed: boolean;
+            /** @description The exercise that was validated */
+            exerciseId: string;
+            /** @description The actual output from running the code */
+            actualOutput?: string;
+            /** @description The expected output (shown on failure) */
+            expectedOutput?: string;
+            /** @description Line-by-line diff between expected and actual (on failure) */
+            diff?: string;
+            /** @description Compilation error message (if code failed to compile) */
+            compileError?: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -155,6 +268,98 @@ export interface operations {
             };
             /** @description Invalid request (malformed JSON or empty code body) */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Go Playground unavailable */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getExercise: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Unique exercise identifier (e.g. "m01-hello-world") */
+                exerciseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Exercise definition */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExerciseResponse"];
+                };
+            };
+            /** @description Exercise not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    validateExercise: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ValidateRequest"];
+            };
+        };
+        responses: {
+            /** @description Validation result (pass or fail with details) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidateResponse"];
+                };
+            };
+            /** @description Invalid request (malformed JSON, empty code, or missing exercise ID) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Exercise not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

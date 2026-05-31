@@ -1,0 +1,418 @@
+---
+/**
+ * Exercise component - Wraps the Playground with exercise instructions,
+ * validation, pass/fail feedback, and a reset button.
+ */
+interface Props {
+  /** Exercise ID to load from the API */
+  exerciseId: string;
+  /** Exercise title (optional, for SSR display before API loads) */
+  title?: string;
+  /** Instructions in markdown (optional, for SSR) */
+  instructions?: string;
+  /** Starter code to pre-fill */
+  starterCode?: string;
+  /** Optional hint text */
+  hint?: string;
+}
+
+const { exerciseId, title = "", instructions = "", starterCode = "", hint = "" } = Astro.props;
+---
+
+<div
+  class="exercise"
+  data-exercise-id={exerciseId}
+  data-starter-code={starterCode}
+  data-hint={hint}
+>
+  <div class="exercise-header">
+    <h3 class="exercise-title">{title || `Exercise: ${exerciseId}`}</h3>
+    <div class="exercise-actions">
+      <button class="exercise-hint-btn" type="button" title="Show hint" style={hint ? "" : "display:none"}>
+        Hint
+      </button>
+      <button class="exercise-reset-btn" type="button" title="Reset to starter code">
+        Reset
+      </button>
+      <button class="exercise-submit-btn" type="button" title="Submit for validation">
+        Submit
+      </button>
+    </div>
+  </div>
+
+  {instructions && (
+    <div class="exercise-instructions">
+      <Fragment set:html={instructions} />
+    </div>
+  )}
+
+  <div class="exercise-hint" style="display:none;">
+    {hint}
+  </div>
+
+  <div class="exercise-playground">
+    <div class="playground" data-code={starterCode} data-readonly="false" data-placeholder="Write your solution here...">
+      <div class="playground-toolbar">
+        <button class="playground-run" type="button" title="Run (Ctrl+Enter)">
+          <span class="run-icon">&#9654;</span>
+          <span class="run-text">Run</span>
+        </button>
+        <span class="playground-status"></span>
+      </div>
+      <div class="playground-editor"></div>
+      <div class="playground-output">
+        <div class="output-header">Output</div>
+        <pre class="output-content"></pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="exercise-result" style="display:none;">
+    <div class="result-badge"></div>
+    <div class="result-details"></div>
+  </div>
+</div>
+
+<style>
+  .exercise {
+    border: 1px solid #313244;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    margin: 1.5rem 0;
+    background: #1e1e2e;
+  }
+
+  .exercise-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: #181825;
+    border-bottom: 1px solid #313244;
+  }
+
+  .exercise-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #cdd6f4;
+  }
+
+  .exercise-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .exercise-actions button {
+    padding: 0.375rem 0.75rem;
+    border: 1px solid #45475a;
+    border-radius: 0.25rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .exercise-hint-btn {
+    background: #45475a;
+    color: #cdd6f4;
+  }
+
+  .exercise-hint-btn:hover {
+    background: #585b70;
+  }
+
+  .exercise-reset-btn {
+    background: transparent;
+    color: #a6adc8;
+  }
+
+  .exercise-reset-btn:hover {
+    background: #313244;
+    color: #cdd6f4;
+  }
+
+  .exercise-submit-btn {
+    background: #89b4fa;
+    color: #1e1e2e;
+    border-color: #89b4fa;
+  }
+
+  .exercise-submit-btn:hover {
+    background: #74c7ec;
+    border-color: #74c7ec;
+  }
+
+  .exercise-submit-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .exercise-instructions {
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: #bac2de;
+    border-bottom: 1px solid #313244;
+  }
+
+  .exercise-instructions :global(code) {
+    background: #313244;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    font-size: 0.8125rem;
+  }
+
+  .exercise-hint {
+    padding: 0.75rem 1rem;
+    background: #313244;
+    color: #f9e2af;
+    font-size: 0.8125rem;
+    border-bottom: 1px solid #45475a;
+  }
+
+  .exercise-result {
+    padding: 0.75rem 1rem;
+    border-top: 1px solid #313244;
+  }
+
+  .result-badge {
+    font-weight: 600;
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .result-badge.pass {
+    color: #a6e3a1;
+  }
+
+  .result-badge.fail {
+    color: #f38ba8;
+  }
+
+  .result-details {
+    font-size: 0.8125rem;
+    color: #a6adc8;
+    white-space: pre-wrap;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+  }
+</style>
+
+<script>
+  import { EditorView, keymap, placeholder as cmPlaceholder } from "@codemirror/view";
+  import { EditorState } from "@codemirror/state";
+  import { defaultKeymap, indentWithTab } from "@codemirror/commands";
+  import { go } from "@codemirror/lang-go";
+  import { oneDark } from "@codemirror/theme-one-dark";
+  import { basicSetup } from "codemirror";
+
+  interface ValidateResponse {
+    passed: boolean;
+    exerciseId: string;
+    actualOutput?: string;
+    expectedOutput?: string;
+    diff?: string;
+    compileError?: string;
+  }
+
+  class ExerciseElement {
+    container: HTMLElement;
+    editor: EditorView;
+    exerciseId: string;
+    starterCode: string;
+    runBtn: HTMLButtonElement;
+    submitBtn: HTMLButtonElement;
+    resetBtn: HTMLButtonElement;
+    hintBtn: HTMLButtonElement;
+    hintEl: HTMLElement;
+    statusEl: HTMLElement;
+    outputEl: HTMLElement;
+    resultEl: HTMLElement;
+    resultBadge: HTMLElement;
+    resultDetails: HTMLElement;
+
+    constructor(container: HTMLElement) {
+      this.container = container;
+      this.exerciseId = container.dataset.exerciseId || "";
+      this.starterCode = container.dataset.starterCode || "";
+
+      const playgroundEl = container.querySelector(".playground") as HTMLElement;
+      const editorContainer = playgroundEl.querySelector(".playground-editor") as HTMLElement;
+      this.runBtn = playgroundEl.querySelector(".playground-run") as HTMLButtonElement;
+      this.statusEl = playgroundEl.querySelector(".playground-status") as HTMLElement;
+      this.outputEl = playgroundEl.querySelector(".output-content") as HTMLElement;
+      this.submitBtn = container.querySelector(".exercise-submit-btn") as HTMLButtonElement;
+      this.resetBtn = container.querySelector(".exercise-reset-btn") as HTMLButtonElement;
+      this.hintBtn = container.querySelector(".exercise-hint-btn") as HTMLButtonElement;
+      this.hintEl = container.querySelector(".exercise-hint") as HTMLElement;
+      this.resultEl = container.querySelector(".exercise-result") as HTMLElement;
+      this.resultBadge = container.querySelector(".result-badge") as HTMLElement;
+      this.resultDetails = container.querySelector(".result-details") as HTMLElement;
+
+      // Create CodeMirror editor
+      this.editor = new EditorView({
+        state: EditorState.create({
+          doc: this.starterCode,
+          extensions: [
+            basicSetup,
+            go(),
+            oneDark,
+            keymap.of([
+              ...defaultKeymap,
+              indentWithTab,
+              { key: "Ctrl-Enter", run: () => { this.runCode(); return true; } },
+              { key: "Cmd-Enter", run: () => { this.runCode(); return true; } },
+            ]),
+            cmPlaceholder("Write your solution here..."),
+          ],
+        }),
+        parent: editorContainer,
+      });
+
+      // Event listeners
+      this.runBtn.addEventListener("click", () => this.runCode());
+      this.submitBtn.addEventListener("click", () => this.submit());
+      this.resetBtn.addEventListener("click", () => this.reset());
+      this.hintBtn.addEventListener("click", () => this.toggleHint());
+    }
+
+    getCode(): string {
+      return this.editor.state.doc.toString();
+    }
+
+    async runCode() {
+      const code = this.getCode();
+      if (!code.trim()) return;
+
+      this.setLoading(true, "run");
+      this.outputEl.textContent = "";
+      this.outputEl.className = "output-content";
+
+      try {
+        const resp = await fetch("/api/compile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ body: code, version: 2 }),
+        });
+
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({ error: "Unknown error" }));
+          throw new Error(err.error || `HTTP ${resp.status}`);
+        }
+
+        const data = await resp.json();
+        if (data.Errors) {
+          this.outputEl.textContent = data.Errors;
+          this.outputEl.classList.add("error");
+          this.statusEl.textContent = "Compilation error";
+        } else {
+          const output = (data.Events || []).map((e: any) => e.Message).join("");
+          this.outputEl.textContent = output || "(no output)";
+          if (data.Status === 0) {
+            this.outputEl.classList.add("success");
+            this.statusEl.textContent = "Success";
+          } else {
+            this.outputEl.classList.add("error");
+            this.statusEl.textContent = `Exit code: ${data.Status}`;
+          }
+        }
+      } catch (err) {
+        this.outputEl.textContent = err instanceof Error ? err.message : "Unknown error";
+        this.outputEl.classList.add("error");
+        this.statusEl.textContent = "Error";
+      } finally {
+        this.setLoading(false, "run");
+      }
+    }
+
+    async submit() {
+      const code = this.getCode();
+      if (!code.trim()) return;
+
+      this.setLoading(true, "submit");
+      this.resultEl.style.display = "none";
+
+      try {
+        const resp = await fetch("/api/validate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ exerciseId: this.exerciseId, code }),
+        });
+
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({ error: "Unknown error" }));
+          throw new Error(err.error || `HTTP ${resp.status}`);
+        }
+
+        const data: ValidateResponse = await resp.json();
+        this.showResult(data);
+      } catch (err) {
+        this.resultEl.style.display = "block";
+        this.resultBadge.textContent = "Error";
+        this.resultBadge.className = "result-badge fail";
+        this.resultDetails.textContent = err instanceof Error ? err.message : "Unknown error";
+      } finally {
+        this.setLoading(false, "submit");
+      }
+    }
+
+    showResult(data: ValidateResponse) {
+      this.resultEl.style.display = "block";
+
+      if (data.passed) {
+        this.resultBadge.textContent = "Passed!";
+        this.resultBadge.className = "result-badge pass";
+        this.resultDetails.textContent = "";
+      } else {
+        this.resultBadge.textContent = "Not quite...";
+        this.resultBadge.className = "result-badge fail";
+
+        let details = "";
+        if (data.compileError) {
+          details = `Compile error:\n${data.compileError}`;
+        } else if (data.diff) {
+          details = `Expected output:\n${data.expectedOutput || ""}\n\nYour output:\n${data.actualOutput || ""}\n\nDiff:\n${data.diff}`;
+        } else if (data.expectedOutput) {
+          details = `Expected: ${data.expectedOutput}\nGot: ${data.actualOutput || "(no output)"}`;
+        }
+        this.resultDetails.textContent = details;
+      }
+    }
+
+    reset() {
+      this.editor.dispatch({
+        changes: { from: 0, to: this.editor.state.doc.length, insert: this.starterCode },
+      });
+      this.outputEl.textContent = "";
+      this.outputEl.className = "output-content";
+      this.statusEl.textContent = "";
+      this.resultEl.style.display = "none";
+    }
+
+    toggleHint() {
+      const isVisible = this.hintEl.style.display !== "none";
+      this.hintEl.style.display = isVisible ? "none" : "block";
+      this.hintBtn.textContent = isVisible ? "Hint" : "Hide Hint";
+    }
+
+    setLoading(loading: boolean, action: "run" | "submit") {
+      if (action === "run") {
+        this.runBtn.disabled = loading;
+        if (loading) {
+          this.runBtn.classList.add("loading");
+          this.statusEl.textContent = "Running...";
+        } else {
+          this.runBtn.classList.remove("loading");
+        }
+      } else {
+        this.submitBtn.disabled = loading;
+        this.submitBtn.textContent = loading ? "Validating..." : "Submit";
+      }
+    }
+  }
+
+  // Initialize all exercise instances on the page
+  document.querySelectorAll<HTMLElement>(".exercise").forEach((el) => {
+    new ExerciseElement(el);
+  });
+</script>

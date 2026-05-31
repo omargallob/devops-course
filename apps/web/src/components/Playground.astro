@@ -1,0 +1,295 @@
+---
+/**
+ * Playground component - Interactive Go code editor with compile/run support.
+ * Uses CodeMirror 6 for the editor and the /api/compile endpoint.
+ */
+interface Props {
+  /** Initial code to display in the editor */
+  code?: string;
+  /** Whether the editor is read-only */
+  readonly?: boolean;
+  /** Placeholder text when editor is empty */
+  placeholder?: string;
+}
+
+const {
+  code = `package main
+
+import "fmt"
+
+func main() {
+\tfmt.Println("Hello, World!")
+}
+`,
+  readonly = false,
+  placeholder = "Write your Go code here...",
+} = Astro.props;
+---
+
+<div class="playground" data-code={code} data-readonly={readonly.toString()} data-placeholder={placeholder}>
+  <div class="playground-toolbar">
+    <button class="playground-run" type="button" title="Run (Ctrl+Enter)">
+      <span class="run-icon">&#9654;</span>
+      <span class="run-text">Run</span>
+    </button>
+    <span class="playground-status"></span>
+  </div>
+  <div class="playground-editor"></div>
+  <div class="playground-output">
+    <div class="output-header">Output</div>
+    <pre class="output-content"></pre>
+  </div>
+</div>
+
+<style>
+  .playground {
+    border: 1px solid var(--border-color, #374151);
+    border-radius: 0.5rem;
+    overflow: hidden;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    background: #1e1e2e;
+  }
+
+  .playground-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    background: #181825;
+    border-bottom: 1px solid #313244;
+  }
+
+  .playground-run {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    background: #a6e3a1;
+    color: #1e1e2e;
+    border: none;
+    border-radius: 0.25rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .playground-run:hover {
+    background: #94e2d5;
+  }
+
+  .playground-run:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .playground-run.loading .run-icon {
+    display: none;
+  }
+
+  .playground-run.loading .run-text::after {
+    content: "...";
+    animation: dots 1s steps(3, end) infinite;
+  }
+
+  @keyframes dots {
+    0% { content: ""; }
+    33% { content: "."; }
+    66% { content: ".."; }
+    100% { content: "..."; }
+  }
+
+  .playground-status {
+    font-size: 0.75rem;
+    color: #a6adc8;
+  }
+
+  .playground-editor {
+    min-height: 200px;
+    max-height: 400px;
+    overflow: auto;
+  }
+
+  .playground-editor :global(.cm-editor) {
+    height: 100%;
+    min-height: 200px;
+    max-height: 400px;
+  }
+
+  .playground-editor :global(.cm-scroller) {
+    overflow: auto;
+  }
+
+  .playground-output {
+    border-top: 1px solid #313244;
+    background: #11111b;
+  }
+
+  .output-header {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #a6adc8;
+    background: #181825;
+    border-bottom: 1px solid #313244;
+  }
+
+  .output-content {
+    padding: 0.75rem;
+    margin: 0;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    color: #cdd6f4;
+    min-height: 2rem;
+    max-height: 200px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .output-content.error {
+    color: #f38ba8;
+  }
+
+  .output-content.success {
+    color: #a6e3a1;
+  }
+</style>
+
+<script>
+  import { EditorView, keymap, placeholder as cmPlaceholder } from "@codemirror/view";
+  import { EditorState } from "@codemirror/state";
+  import { defaultKeymap, indentWithTab } from "@codemirror/commands";
+  import { go } from "@codemirror/lang-go";
+  import { oneDark } from "@codemirror/theme-one-dark";
+  import { basicSetup } from "codemirror";
+  import { PlaygroundClient } from "@/utils/playground";
+
+  class PlaygroundElement {
+    container: HTMLElement;
+    editor: EditorView;
+    runBtn: HTMLButtonElement;
+    statusEl: HTMLElement;
+    outputEl: HTMLElement;
+    client: PlaygroundClient;
+
+    constructor(container: HTMLElement) {
+      this.container = container;
+      this.client = new PlaygroundClient();
+
+      const code = container.dataset.code || "";
+      const readonly = container.dataset.readonly === "true";
+      const placeholderText = container.dataset.placeholder || "";
+
+      const editorContainer = container.querySelector(".playground-editor") as HTMLElement;
+      this.runBtn = container.querySelector(".playground-run") as HTMLButtonElement;
+      this.statusEl = container.querySelector(".playground-status") as HTMLElement;
+      this.outputEl = container.querySelector(".output-content") as HTMLElement;
+
+      // Create CodeMirror editor
+      const extensions = [
+        basicSetup,
+        go(),
+        oneDark,
+        keymap.of([
+          ...defaultKeymap,
+          indentWithTab,
+          { key: "Ctrl-Enter", run: () => { this.run(); return true; } },
+          { key: "Cmd-Enter", run: () => { this.run(); return true; } },
+        ]),
+      ];
+
+      if (placeholderText) {
+        extensions.push(cmPlaceholder(placeholderText));
+      }
+
+      if (readonly) {
+        extensions.push(EditorState.readOnly.of(true));
+      }
+
+      this.editor = new EditorView({
+        state: EditorState.create({
+          doc: code,
+          extensions,
+        }),
+        parent: editorContainer,
+      });
+
+      // Event listeners
+      this.runBtn.addEventListener("click", () => this.run());
+    }
+
+    async run() {
+      const code = this.editor.state.doc.toString();
+      if (!code.trim()) return;
+
+      this.setLoading(true);
+      this.outputEl.textContent = "";
+      this.outputEl.className = "output-content";
+
+      try {
+        const response = await this.client.compile(code);
+
+        if (response.Errors) {
+          this.outputEl.textContent = response.Errors;
+          this.outputEl.classList.add("error");
+          this.statusEl.textContent = "Compilation error";
+        } else {
+          const output = this.client.getOutput(response);
+          this.outputEl.textContent = output || "(no output)";
+          if (this.client.isSuccess(response)) {
+            this.outputEl.classList.add("success");
+            this.statusEl.textContent = "Success";
+          } else {
+            this.outputEl.classList.add("error");
+            this.statusEl.textContent = `Exit code: ${response.Status}`;
+          }
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Unknown error";
+        if (message.includes("429") || message.toLowerCase().includes("rate limit")) {
+          this.outputEl.innerHTML = "Rate limit reached. Please wait a moment before trying again.";
+          this.statusEl.textContent = "Rate limited";
+        } else if (message.includes("Failed to fetch") || message.includes("NetworkError")) {
+          this.outputEl.innerHTML =
+            'Backend unavailable. Try <a href="https://go.dev/play/" target="_blank" rel="noopener" style="color:#89b4fa;text-decoration:underline">Go Playground</a> directly.';
+          this.statusEl.textContent = "Offline";
+        } else {
+          this.outputEl.textContent = message;
+          this.statusEl.textContent = "Error";
+        }
+        this.outputEl.classList.add("error");
+      } finally {
+        this.setLoading(false);
+      }
+    }
+
+    setLoading(loading: boolean) {
+      this.runBtn.disabled = loading;
+      if (loading) {
+        this.runBtn.classList.add("loading");
+        this.statusEl.textContent = "Running...";
+      } else {
+        this.runBtn.classList.remove("loading");
+      }
+    }
+
+    /** Get the current editor content. Used by Exercise component. */
+    getCode(): string {
+      return this.editor.state.doc.toString();
+    }
+
+    /** Set the editor content. Used by Exercise component for reset. */
+    setCode(code: string) {
+      this.editor.dispatch({
+        changes: { from: 0, to: this.editor.state.doc.length, insert: code },
+      });
+    }
+  }
+
+  // Initialize all playground instances on the page
+  document.querySelectorAll<HTMLElement>(".playground").forEach((el) => {
+    // Store instance on element for access by Exercise component
+    (el as any).__playground = new PlaygroundElement(el);
+  });
+</script>

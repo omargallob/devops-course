@@ -1,0 +1,62 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Exercise from '../../components/Exercise.astro';
+
+export function getStaticPaths() {
+  return [
+    { params: { id: "m01-hello-world" } },
+    { params: { id: "m01-variables" } },
+    { params: { id: "m01-loop" } },
+    { params: { id: "m01-fizzbuzz" } },
+  ];
+}
+
+interface ExerciseData {
+  title: string;
+  instructions: string;
+  starterCode: string;
+  hint: string;
+}
+
+const exerciseMap: Record<string, ExerciseData> = {
+  "m01-hello-world": {
+    title: "Hello World",
+    instructions: "<p>Write a program that prints exactly <code>Hello, World!</code> to stdout.</p><p>Use the <code>fmt</code> package to print.</p>",
+    starterCode: "package main\n\nimport \"fmt\"\n\nfunc main() {\n\t// Your code here\n}\n",
+    hint: "Use fmt.Println() to print the text.",
+  },
+  "m01-variables": {
+    title: "Variable Declaration",
+    instructions: "<p>Declare a variable <code>name</code> with the value <code>\"Gopher\"</code> and print <code>Hello, Gopher!</code></p>",
+    starterCode: "package main\n\nimport \"fmt\"\n\nfunc main() {\n\t// Declare a variable \"name\" and use it in a greeting\n}\n",
+    hint: "Use := for short variable declaration, then fmt.Printf or fmt.Println.",
+  },
+  "m01-loop": {
+    title: "For Loop",
+    instructions: "<p>Write a program that prints the numbers 1 through 5, one per line.</p>",
+    starterCode: "package main\n\nimport \"fmt\"\n\nfunc main() {\n\t// Use a for loop to print numbers 1-5\n}\n",
+    hint: "Use a for loop: for i := 1; i <= 5; i++ { ... }",
+  },
+  "m01-fizzbuzz": {
+    title: "FizzBuzz",
+    instructions: "<p>Write a FizzBuzz program for numbers 1 to 15.</p><ul><li>Print \"Fizz\" for multiples of 3</li><li>Print \"Buzz\" for multiples of 5</li><li>Print \"FizzBuzz\" for multiples of both</li><li>Print the number otherwise</li></ul>",
+    starterCode: "package main\n\nimport \"fmt\"\n\nfunc main() {\n\t// Implement FizzBuzz for 1-15\n}\n",
+    hint: "Use the modulo operator (%). Check divisibility by 15 first, then 3, then 5.",
+  },
+};
+
+const { id } = Astro.params;
+const exercise = exerciseMap[id!];
+---
+
+<BaseLayout title={exercise.title}>
+  <div class="py-8 max-w-4xl mx-auto">
+    <Exercise
+      exerciseId={id!}
+      title={exercise.title}
+      instructions={exercise.instructions}
+      starterCode={exercise.starterCode}
+      hint={exercise.hint}
+    />
+  </div>
+</BaseLayout>
