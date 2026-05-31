@@ -1,0 +1,157 @@
+openapi: "3.0.3"
+info:
+  title: DevOps Course API
+  description: Backend API for the interactive Go DevOps course
+  version: 0.1.0
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+
+tags:
+  - name: system
+    description: System health and status endpoints
+  - name: playground
+    description: Go Playground code compilation and execution
+
+paths:
+  /healthz:
+    get:
+      operationId: getHealth
+      summary: Health check
+      description: Returns the health status of the server
+      tags:
+        - system
+      responses:
+        "200":
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /api/compile:
+    post:
+      operationId: compileCode
+      summary: Compile and run Go code
+      description: |
+        Proxies Go source code to the Go Playground for compilation and execution.
+        Returns compilation output, errors, and execution events.
+      tags:
+        - playground
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompileRequest"
+      responses:
+        "200":
+          description: Compilation result from the Go Playground
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompileResponse"
+        "400":
+          description: Invalid request (malformed JSON or empty code body)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Go Playground unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          example: "ok"
+
+    CompileRequest:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          type: string
+          description: Go source code to compile and run
+          minLength: 1
+          example: |
+            package main
+
+            import "fmt"
+
+            func main() {
+                fmt.Println("Hello, World!")
+            }
+        version:
+          type: integer
+          description: Go Playground API version
+          default: 2
+
+    CompileResponse:
+      type: object
+      properties:
+        Errors:
+          type: string
+          description: Compilation errors (empty string if none)
+        Events:
+          type: array
+          description: Execution output events
+          items:
+            $ref: "#/components/schemas/CompileEvent"
+        Status:
+          type: integer
+          description: Process exit status code
+        IsTest:
+          type: boolean
+          description: Whether the code was detected as a test
+        TestsFailed:
+          type: integer
+          description: Number of failed tests (0 if not a test)
+        VetOK:
+          type: boolean
+          description: Whether go vet passed
+        VetErrors:
+          type: string
+          description: Output from go vet (empty if VetOK is true)
+
+    CompileEvent:
+      type: object
+      properties:
+        Message:
+          type: string
+          description: Output text
+        Kind:
+          type: string
+          description: Event kind (e.g. "stdout", "stderr")
+        Delay:
+          type: integer
+          description: Delay in nanoseconds before this event
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+          example: "empty code body"
