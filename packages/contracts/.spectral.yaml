@@ -2,5 +2,5 @@ extends:
   - "spectral:oas"
 
 rules:
-  info-contact: off
+  info-contact: "off"
   oas3-api-servers: warn

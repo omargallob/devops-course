@@ -153,7 +153,7 @@ jobs:
       - name: Detect breaking changes
         if: github.event_name == 'pull_request'
         run: |
-          go install github.com/tufin/oasdiff/cmd/oasdiff@latest
+          go install github.com/oasdiff/oasdiff@latest
           git fetch origin main
           git show origin/main:packages/contracts/openapi/api.yaml > /tmp/api-base.yaml 2>/dev/null || exit 0
           oasdiff breaking /tmp/api-base.yaml packages/contracts/openapi/api.yaml
