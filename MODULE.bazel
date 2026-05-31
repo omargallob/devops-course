@@ -46,6 +46,15 @@ pull(
     unsafe_allow_tag_without_digest = True,
 )
 
+pull(
+    name = "nginx_alpine",
+    layer_handling = "eager",
+    registry = "index.docker.io",
+    repository = "library/nginx",
+    tag = "alpine",
+    unsafe_allow_tag_without_digest = True,
+)
+
 # ─── Platforms ────────────────────────────────────────────────────────────────
 bazel_dep(name = "platforms", version = "1.0.0")
 

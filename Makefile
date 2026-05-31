@@ -1,4 +1,4 @@
-.PHONY: all build test lint fmt dev setup clean image push docker-dev docker-dev-down db-shell db-reset \
+.PHONY: all build test lint fmt dev setup clean image push image-web push-web docker-dev docker-dev-down db-shell db-reset \
 	generate generate-go generate-ts lint-contracts
 
 # ─── Default ──────────────────────────────────────────────────────────────────
@@ -23,13 +23,13 @@ test-web:
 
 # ─── Lint ─────────────────────────────────────────────────────────────────────
 lint:
-	bazel test //:golangci_lint //:yamllint //:prettier //:eslint
+	bazel test //:golangci_lint //:yamllint //:prettier //apps/web:eslint
 
 lint-go:
 	bazel test //:golangci_lint
 
 lint-web:
-	bazel test //:prettier //:eslint
+	bazel test //:prettier //apps/web:eslint
 
 lint-yaml:
 	bazel test //:yamllint
@@ -66,8 +66,14 @@ dev-server:
 image:
 	bazel build //cmd/server:image
 
+image-web:
+	bazel build //apps/web:image
+
 push:
 	bazel run //cmd/server:push
+
+push-web:
+	bazel run //apps/web:push
 
 # ─── Gazelle ──────────────────────────────────────────────────────────────────
 gazelle:

@@ -1,0 +1,4 @@
+exports_files(
+    ["nginx.conf"],
+    visibility = ["//apps/web:__pkg__"],
+)

@@ -1,0 +1,87 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    name: Release Please
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  tag-images:
+    name: Tag Container Images
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag images with release version
+        env:
+          VERSION: ${{ needs.release-please.outputs.version }}
+        run: |
+          OWNER="${{ github.repository_owner }}"
+
+          for NAME in server web; do
+            IMAGE="ghcr.io/${OWNER}/devops-course-${NAME}"
+            echo "Tagging ${IMAGE}:latest → v${VERSION}"
+            docker pull "${IMAGE}:latest"
+            docker tag "${IMAGE}:latest" "${IMAGE}:v${VERSION}"
+            docker push "${IMAGE}:v${VERSION}"
+          done
+
+  update-release-notes:
+    name: Add Image References to Release
+    needs: [release-please, tag-images]
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Append container image info to release body
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.release-please.outputs.version }}
+          TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
+        run: |
+          OWNER="${{ github.repository_owner }}"
+          REPO="${{ github.repository }}"
+          SERVER_IMAGE="ghcr.io/${OWNER}/devops-course-server:v${VERSION}"
+          WEB_IMAGE="ghcr.io/${OWNER}/devops-course-web:v${VERSION}"
+
+          EXISTING_BODY=$(gh release view "${TAG_NAME}" --repo "${REPO}" --json body -q .body)
+
+          IMAGES_SECTION="
+          ---
+
+          ## Container Images
+
+          | Image | Pull Command |
+          |-------|-------------|
+          | Server | \`docker pull ${SERVER_IMAGE}\` |
+          | Web | \`docker pull ${WEB_IMAGE}\` |"
+
+          gh release edit "${TAG_NAME}" \
+            --repo "${REPO}" \
+            --notes "${EXISTING_BODY}${IMAGES_SECTION}"
