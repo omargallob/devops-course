@@ -22,14 +22,35 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  tag-images:
-    name: Tag Container Images
+  build-and-push-images:
+    name: Build & Push Container Images
     needs: release-please
     if: needs.release-please.outputs.release_created == 'true'
     runs-on: ubuntu-latest
     permissions:
       packages: write
     steps:
+      - uses: actions/checkout@v6
+
+      - uses: bazel-contrib/setup-bazel@0.14.0
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}-image
+          repository-cache: true
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
+      - uses: pnpm/action-setup@v5
+
+      - name: Install frontend deps
+        run: pnpm install
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
@@ -37,23 +58,23 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Tag images with release version
+      - name: Build and push server image
         env:
           VERSION: ${{ needs.release-please.outputs.version }}
         run: |
-          OWNER="${{ github.repository_owner }}"
+          bazel run //cmd/server:push --config=ci \
+            -- --tag "v${VERSION}" --tag "latest"
 
-          for NAME in server web; do
-            IMAGE="ghcr.io/${OWNER}/devops-course-${NAME}"
-            echo "Tagging ${IMAGE}:latest → v${VERSION}"
-            docker pull "${IMAGE}:latest"
-            docker tag "${IMAGE}:latest" "${IMAGE}:v${VERSION}"
-            docker push "${IMAGE}:v${VERSION}"
-          done
+      - name: Build and push web image
+        env:
+          VERSION: ${{ needs.release-please.outputs.version }}
+        run: |
+          bazel run //apps/web:push --config=ci \
+            -- --tag "v${VERSION}" --tag "latest"
 
   update-release-notes:
     name: Add Image References to Release
-    needs: [release-please, tag-images]
+    needs: [release-please, build-and-push-images]
     if: needs.release-please.outputs.release_created == 'true'
     runs-on: ubuntu-latest
     permissions:

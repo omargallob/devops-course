@@ -1,0 +1,9 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go",
+    srcs = ["api.gen.go"],
+    importpath = "github.com/omargallob/devops-course/packages/contracts/generated/go",
+    visibility = ["//visibility:public"],
+    deps = ["@com_github_go_chi_chi_v5//:chi"],
+)

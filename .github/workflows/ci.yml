@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   lint:
@@ -104,6 +103,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
+      - uses: pnpm/action-setup@v5
+
+      - name: Install frontend deps
+        run: pnpm install
+
       - uses: bazel-contrib/setup-bazel@0.14.0
         with:
           bazelisk-cache: true
@@ -157,43 +169,3 @@ jobs:
           git fetch origin main
           git show origin/main:packages/contracts/openapi/api.yaml > /tmp/api-base.yaml 2>/dev/null || exit 0
           oasdiff breaking /tmp/api-base.yaml packages/contracts/openapi/api.yaml
-
-  image:
-    name: Build & Push Images
-    runs-on: ubuntu-latest
-    needs: [lint, test, build, contracts]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: bazel-contrib/setup-bazel@0.14.0
-        with:
-          bazelisk-cache: true
-          disk-cache: ${{ github.workflow }}-image
-          repository-cache: true
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version-file: .nvmrc
-
-      - uses: pnpm/action-setup@v5
-
-      - name: Install frontend deps
-        run: pnpm install
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push server image
-        run: |
-          bazel run //cmd/server:push --config=ci \
-            -- --tag "${{ github.sha }}" --tag "latest"
-
-      - name: Build and push web image
-        run: |
-          bazel run //apps/web:push --config=ci \
-            -- --tag "${{ github.sha }}" --tag "latest"
