@@ -1,0 +1,14 @@
+{
+  "name": "@devops-course/e2e",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "cypress:open": "cypress open",
+    "cypress:run": "cypress run",
+    "test": "cypress run"
+  },
+  "devDependencies": {
+    "cypress": "^14.4.0",
+    "typescript": "^5.8.0"
+  }
+}

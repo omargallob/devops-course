@@ -1,6 +1,8 @@
 packages:
   - "apps/*"
   - "packages/*"
+  - "e2e"
 allowBuilds:
+  cypress: true
   esbuild: false
   sharp: false
